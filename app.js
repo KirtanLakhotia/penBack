@@ -37,28 +37,91 @@ const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
 
+// async function generateSummaryAndTodos(transcript) {
+
+//     const response = await ai.models.generateContent({
+//         model: "gemini-3.6-flash",
+
+//         contents: `
+// You are an AI assistant for a smart AI pen. you have given an transcript it can be in any language you had to answer in english only.
+
+// Analyze the following transcript.
+
+// Return:
+
+// 1. A clear and useful description.
+// 2. Only the important action items that the user actually needs to do.
+
+// Rules for todos:
+// - Only include genuinely important actions.
+// - Do not convert general information into a todo.
+// - Do not create todos from casual statements.
+// - Do not invent tasks.
+// - If there are no important actions, return an empty array.
+// - Keep each todo short and actionable.
+
+// Transcript:
+
+// ${transcript}
+// `,
+
+//         config: {
+//             responseMimeType: "application/json",
+
+//             responseSchema: {
+//                 type: Type.OBJECT,
+
+//                 properties: {
+//                     summary: {
+//                         type: Type.STRING
+//                     },
+
+//                     todos: {
+//                         type: Type.ARRAY,
+//                         items: {
+//                             type: Type.STRING
+//                         }
+//                     }
+//                 },
+
+//                 required: ["summary", "todos"]
+//             }
+//         }
+//     });
+
+//     return JSON.parse(response.text);
+// }
+
 async function generateSummaryAndTodos(transcript) {
 
     const response = await ai.models.generateContent({
         model: "gemini-3.6-flash",
 
-        contents: `
-You are an AI assistant.
+contents: `
+You are an AI assistant for a smart AI pen.
 
-Analyze the following transcript.
+Analyze the conversation transcript and respond in English only.
 
 Return:
+1. A detailed set of notes describing the conversation.
+2. Only the genuinely important actions the user needs to take.
 
-1. A clear and useful description.
-2. Only the important action items that the user actually needs to do.
+For the summary:
+- Write detailed, well-structured notes, not a short summary.
+- Capture the conversation topic, context, key points, discussions, decisions, plans, problems, suggestions, and conclusions.
+- Since multiple people may be speaking, distinguish their viewpoints or statements when important.
+- Include important names, numbers, dates, deadlines, requirements, and other specific details.
+- Preserve important details even if they seem minor, as long as they help understand the conversation.
+- Organize related information logically so the notes are easy to review later.
+- The notes should allow the user to understand the conversation without listening to the recording.
+- Do not copy the transcript word-for-word.
+- Do not invent or assume information.
 
-Rules for todos:
-- Only include genuinely important actions.
-- Do not convert general information into a todo.
-- Do not create todos from casual statements.
+For todos:
+- Include only clear, important, actionable tasks.
+- Do not create tasks from casual discussion or suggestions unless an actual action is expected.
 - Do not invent tasks.
-- If there are no important actions, return an empty array.
-- Keep each todo short and actionable.
+- If there are no important actions, return [].
 
 Transcript:
 
