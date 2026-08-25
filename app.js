@@ -12,8 +12,9 @@ import Groq from 'groq-sdk'
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { saveRecording, saveTodos, getRecordings ,getTodos } from "./db.js";
+import { createAndStoreEmbeddings } from "./rag/ingest.js";
 
-
+import { retrieveFromRecording, retrieveFromUser } from "./rag/retriever.js";
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -156,6 +157,38 @@ ${transcript}
 }
 
 
+async function answerFromDocuments(question, documents) {
+
+    const context = documents
+        .map((doc, index) => {
+            return `Document ${index + 1}:
+${doc.pageContent}`;
+        })
+        .join("\n\n");
+        console.log("Context for question:", context);
+
+    const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+
+        contents: `
+You are an AI assistant.
+
+Answer the user's question based on the provided context. Give answer only in english.
+
+i can ask you to do some thing on the data so do that also.
+
+User question:
+${question}
+
+Context:
+${context}
+        `
+    });
+
+    return response.text;
+}
+
+
 app.post('/api/files/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -229,14 +262,13 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
 
 
         // const {summ , toto} = something something
-        const { summary, todos } =
-        await generateSummaryAndTodos(transcript);
+        const { summary, todos } = await generateSummaryAndTodos(transcript);
         console.log('---------------------------------------------------------')
         console.log(summary);
         console.log(todos);
 
         // insert into database like something thing {{meta things} ,trans , summ , toto} ;
-        const recording  = await saveRecording({
+        const recording = await saveRecording({
             user_id: 1, // replace with actual user
             audioPath: data.path,
             title: file.originalname,
@@ -246,6 +278,31 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         });
 
        const todoSaved =  await saveTodos(recording.recording_id, todos);
+
+    //    inserting the imbeddings into the database for the summary and todos and transcription for future search and retrieval
+    //    int his i will get recoring id and the todo id
+    //    
+
+        const embeddingResult =
+        await createAndStoreEmbeddings({
+            recordingId: recording.recording_id,
+            userId: 1,
+            title: file.originalname,
+            transcript: transcript
+        });
+        await createAndStoreEmbeddings({
+            recordingId: recording.recording_id,
+            userId: 1,
+            title: file.originalname,
+            transcript: summary
+        });
+
+        console.log(
+            "Embedding result:",
+            embeddingResult
+        );
+            
+
 
         res.json({
             success: true,
@@ -265,7 +322,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         })
     }
 })
-
+// not in use mostly
 app.get('/api/files', async (req, res) => {
     try {
         const { data, error } = await supabase.storage
@@ -382,6 +439,58 @@ app.post('/recordings', async (req, res) => {
     }
 });
 
+app.post('/askRecordingLevel',async (req,res)=>{
+    try {
+        const { recordingId, question } = req.body;
+
+        const documents = await retrieveFromRecording(recordingId, question);
+        // for (const doc of documents) {
+        //     console.log(doc.pageContent);
+        //     console.log("----------------------------------------------------------------------------------------");
+        // }
+        const answer = await answerFromDocuments(question , documents);
+        console.log("Answer:", answer);
+        res.json({
+            success: true,
+            documents,
+            answer
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve documents'
+        });
+    }
+
+});
+
+app.post('/askUserLevel',async (req,res)=>{
+    try {
+        const { userId, question } = req.body;
+
+        const documents = await retrieveFromUser(userId, question);
+
+        const answer = await answerFromDocuments(question , documents);
+
+        console.log("Answer:", answer);
+        res.json({
+            success: true,
+            documents,
+            answer
+        });
+        
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve documents'
+        });
+    }
+});
 
 app.get('/', (req, res) => {
 	res.send('Hello from the backend server!')
