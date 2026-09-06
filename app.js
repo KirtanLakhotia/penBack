@@ -11,7 +11,7 @@ import 'dotenv/config'
 import Groq from 'groq-sdk'
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { saveRecording, saveTodos, getRecordings ,getTodos } from "./db.js";
+import { saveRecording, saveTodos, getRecordings ,getTodos, getConversation,saveConversation, saveMessage, getMessages } from "./db.js";
 import { createAndStoreEmbeddings } from "./rag/ingest.js";
 
 import { retrieveFromRecording, retrieveFromUser } from "./rag/retriever.js";
@@ -96,7 +96,7 @@ const ai = new GoogleGenAI({
 async function generateSummaryAndTodos(transcript) {
 
     const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-3.5-flash",
 
 contents: `
 You are an AI assistant for a smart AI pen.
@@ -168,25 +168,98 @@ ${doc.pageContent}`;
         console.log("Context for question:", context);
 
     const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-3.5-flash-lite",
 
         contents: `
-You are an AI assistant.
+    You are an intelligent AI assistant that can answer questions using both the provided conversation context and your general knowledge.
 
-Answer the user's question based on the provided context. Give answer only in english.
+    Your job is to understand the user's intent and decide how to answer.
 
-i can ask you to do some thing on the data so do that also.
+    IMPORTANT RULES:
 
-User question:
-${question}
+    1. QUESTIONS ABOUT THE PROVIDED RECORDING/CONTEXT
+    - If the user's question is about something discussed in the provided context, use the context as the primary source.
+    - Do not invent or assume information that is not present in the context.
+    - If the context contains the answer, answer using the information from the context.
+    - You may organize, summarize, explain, compare, or analyze information from the context when requested.
 
-Context:
-${context}
-        `
+    2. GENERAL KNOWLEDGE QUESTIONS
+    - If the user asks a general knowledge question that is not related to the provided context, answer it using your general knowledge.
+    - You do NOT need the answer to be present in the context.
+    - For example, if the user asks "What is machine learning?", provide a normal, useful explanation even if machine learning is not mentioned in the context.
+    - Never respond with "the context does not contain this information" for a general knowledge question.
+
+    3. MIXED QUESTIONS
+    - If the question is partly about the context and partly general knowledge, use the relevant information from the context and supplement it with general knowledge.
+    - Clearly distinguish between information that comes from the recording and information that is general knowledge when that distinction matters.
+
+    4. ACTIONS ON THE CONTEXT
+    The user may ask you to perform operations on the provided context, such as:
+    - summarize it
+    - explain something
+    - extract names, companies, dates, numbers, or topics
+    - find specific information
+    - compare two things
+    - identify decisions
+    - identify action items
+    - analyze statements
+    - answer questions about what a person said
+    - find information mentioned in the recording
+
+    When asked to do these things, perform the requested operation using the context.
+
+    5. ACCURACY
+    - Never fabricate information about the recording.
+    - If a question specifically asks what was said in the recording and the information cannot be found in the context, say that the information was not found in the provided recording context.
+    - For general knowledge questions, answer normally using your own knowledge.
+    - Do not unnecessarily mention the existence of the context or RAG system.
+
+    6. LANGUAGE
+    - Always answer in English unless the user explicitly asks for another language.
+    - Give a clear and direct answer.
+    - Do not repeat the user's question unnecessarily.
+
+    USER QUESTION:
+    ${question}
+
+    PROVIDED CONTEXT:
+    ${context}
+
+    Now determine the user's intent and provide the most useful answer.
+    `
     });
 
     return response.text;
 }
+
+async function getModifiedQuestion(question, previousMessages) {
+    const previousContext = previousMessages
+        .map((msg, index) => {
+        return `Message ${index + 1} (${msg.role}):
+        ${msg.content}`;
+        })
+        .join("\n\n");  
+        const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash-lite",
+            contents: `
+                You are an intelligent AI assistant that can rephrase a user's question to include relevant context from previous messages in a conversation.
+                previous messages : 
+                ${previousContext}
+
+                User's current question: ${question}
+
+                Your task is to rewrite the user's current question to include relevant context from the previous messages, so that it can be answered accurately without needing to refer back to the previous messages.
+                - If the current question is clear and does not require additional context, return it as-is.
+                - If the current question is ambiguous or could be better understood with context, rewrite it to include that context.
+                - Do not invent any information that is not present in the previous messages or the current question.
+                - Keep the rewritten question concise and focused on what the user is asking.
+                `
+        });
+
+        return response.text;
+}
+
+        
 
 
 app.post('/api/files/upload', upload.single('file'), async (req, res) => {
@@ -491,6 +564,38 @@ app.post('/askUserLevel',async (req,res)=>{
         });
     }
 });
+
+app.post('/askRecordingLevelChat', async(req,res)=>{
+    try {
+        const { recordingId, userId, question } = req.body; 
+        let conversation = await getConversation(userId, recordingId);
+        if(!conversation){
+           conversation = await saveConversation(userId, recordingId); // save the first question with empty answer
+        }
+        const conversationId = conversation.conversation_id;
+
+       
+        const previousMessages = await getMessages(conversationId);
+        previousMessages.reverse();
+        const message = await saveMessage(conversationId,question,'user'); 
+        const modifiedQuestion = await getModifiedQuestion(question, previousMessages);
+        console.log("Modified Question:", modifiedQuestion);
+        console.log('----------------------------------------------------------');
+
+        const documents = await retrieveFromRecording(recordingId, modifiedQuestion);
+        const answer = await answerFromDocuments(modifiedQuestion , documents);
+        const answerMessage = await saveMessage(conversationId, answer, 'assistant');
+        res.json({
+            success: true,
+            answer
+        });
+        
+         
+    }catch (error) {
+        console.error(error);
+    }
+})
+
 
 app.get('/', (req, res) => {
 	res.send('Hello from the backend server!')

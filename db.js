@@ -92,9 +92,81 @@ async function getTodos(recordingId) {
     return result.rows;
 }
 
+async function getConversation(userId, recordingId) {
+    const result = await pool.query(
+        `
+        SELECT *
+        FROM conversations
+        WHERE user_id = $1
+          AND recording_id = $2
+        LIMIT 1
+        `,
+        [userId, recordingId]
+    );
+
+    return result.rows[0] || null;
+}
+
+async function saveConversation(userId, recordingId) {
+   const result =  await pool.query(
+        `
+        INSERT INTO conversations
+            (
+                user_id,
+                recording_id
+            )
+        VALUES
+            ($1, $2)
+        RETURNING *
+        `,
+        [
+            userId,
+            recordingId
+        ]
+    );
+    return result.rows[0];
+}
+
+async function saveMessage(conversationId, question, role) {
+    const result = await pool.query(
+        `
+        INSERT INTO messages
+            (
+                conversation_id,
+
+                content,
+                role
+            )
+        VALUES
+            ($1, $2, $3)
+        RETURNING *`,
+        [
+            conversationId,
+            question,
+            role
+        ]
+    );
+    return result.rows[0];
+}
+
+async function getMessages(conversationId) {
+    const result = await pool.query(
+        `
+        SELECT * FROM messages
+        WHERE conversation_id = $1 order by created_at DESC limit 10
+        `,
+        [conversationId]
+    );
+    return result.rows;
+}
+
 export {
     saveRecording,
     saveTodos,
     getRecordings,
-    getTodos
+    getTodos,
+    getConversation,
+    saveConversation,
+    saveMessage,
+    getMessages
 };
