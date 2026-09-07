@@ -579,9 +579,8 @@ app.post('/askRecordingLevelChat', async(req,res)=>{
         previousMessages.reverse();
         const message = await saveMessage(conversationId,question,'user'); 
         const modifiedQuestion = await getModifiedQuestion(question, previousMessages);
-        console.log("Modified Question:", modifiedQuestion);
-        console.log('----------------------------------------------------------');
-
+        // console.log("Modified Question:", modifiedQuestion);
+        // console.log('----------------------------------------------------------');
         const documents = await retrieveFromRecording(recordingId, modifiedQuestion);
         const answer = await answerFromDocuments(modifiedQuestion , documents);
         const answerMessage = await saveMessage(conversationId, answer, 'assistant');
@@ -595,6 +594,32 @@ app.post('/askRecordingLevelChat', async(req,res)=>{
         console.error(error);
     }
 })
+
+app.post('/getConversation', async(req,res)=>{
+    try {
+        const { userId, recordingId } = req.body;
+        const conversation = await getConversation(userId, recordingId);
+        if(!conversation){
+            return res.status(404).json({
+                success: false,
+                message: 'No conversation found for this user and recording'
+            });
+        }
+        else{
+            const conversationId = conversation.conversation_id;
+            const messages = await getMessages(conversationId);
+            res.json({
+                success: true,
+                messages
+            });
+        }
+    } catch (error) {
+        console.error(error);
+    }
+
+}) ;
+
+
 
 
 app.get('/', (req, res) => {
