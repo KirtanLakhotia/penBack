@@ -92,17 +92,46 @@ async function getTodos(recordingId) {
     return result.rows;
 }
 
-async function getConversation(userId, recordingId) {
-    const result = await pool.query(
-        `
-        SELECT *
-        FROM conversations
-        WHERE user_id = $1
-          AND recording_id = $2
-        LIMIT 1
-        `,
-        [userId, recordingId]
-    );
+// async function getConversation(userId, recordingId=null) {
+//     const result = await pool.query(
+//         `
+//         SELECT *
+//         FROM conversations
+//         WHERE user_id = $1
+//           AND recording_id = $2
+//         LIMIT 1
+//         `,
+//         [userId, recordingId]
+//     );
+
+//     return result.rows[0] || null;
+// }
+async function getConversation(userId, recordingId = null) {
+    let result;
+
+    if (recordingId === null) {
+        result = await pool.query(
+            `
+            SELECT *
+            FROM conversations
+            WHERE user_id = $1
+              AND recording_id IS NULL
+            LIMIT 1
+            `,
+            [userId]
+        );
+    } else {
+        result = await pool.query(
+            `
+            SELECT *
+            FROM conversations
+            WHERE user_id = $1
+              AND recording_id = $2
+            LIMIT 1
+            `,
+            [userId, recordingId]
+        );
+    }
 
     return result.rows[0] || null;
 }

@@ -595,7 +595,8 @@ app.post('/askRecordingLevelChat', async(req,res)=>{
     }
 })
 
-app.post('/getConversation', async(req,res)=>{
+
+app.post('/getConversationMessages', async(req,res)=>{
     try {
         const { userId, recordingId } = req.body;
         const conversation = await getConversation(userId, recordingId);
@@ -618,6 +619,70 @@ app.post('/getConversation', async(req,res)=>{
     }
 
 }) ;
+
+app.post('/askUserLevelChat', async(req,res)=>{
+    try{
+        const { userId, question, conversationId } = req.body;
+        let conversation = await getConversation(userId, null);
+        if(!conversation){
+            res.status(404).json({
+                success: false,
+                message: 'No conversation found for this user'
+            });
+        }
+        const previousMessages = await getMessages(conversationId);
+        previousMessages.reverse();
+        const message = await saveMessage(conversationId,question,'user');
+        const modifiedQuestion = await getModifiedQuestion(question, previousMessages);
+        console.log("Modified Question:", modifiedQuestion);
+        console.log('----------------------------------------------------------');
+        const documents = await retrieveFromUser(userId, modifiedQuestion);
+        const answer = await answerFromDocuments(modifiedQuestion , documents);
+        const answerMessage = await saveMessage(conversationId, answer, 'assistant');
+        res.json({
+            success: true,
+            answer
+        });
+    }
+    catch(error){
+        console.error(error);
+    }
+});
+
+
+
+
+
+
+app.post('/createConversation',async(req,res)=>{
+    try {
+        const { userId } = req.body;
+        const conversation = await saveConversation(userId, null);
+        res.json({
+            success: true,
+            conversation
+        });
+    }catch (error) {
+        console.error(error);
+    }
+}) ;
+
+
+app.post('/getConversations', async(req,res)=>{
+    try {
+        const { userId } = req.body;
+        let conversation = await getConversation(userId, null);
+        res.json({
+            success: true,
+            conversation
+        }); 
+    }
+    catch (error) {
+        console.error(error);
+    }
+}) ;
+
+
 
 
 
