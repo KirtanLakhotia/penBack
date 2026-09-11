@@ -620,6 +620,20 @@ app.post('/getConversationMessages', async(req,res)=>{
 
 }) ;
 
+app.post("/getUserLevelConversationMessages", async(req,res)=>{
+    try{
+        const { conversationId } = req.body;
+        const messages = await getMessages(conversationId);
+        res.json({
+            success: true,
+            messages
+        });
+        
+   } catch(error){
+    console.error(error);
+   }
+}) ;
+
 app.post('/askUserLevelChat', async(req,res)=>{
     try{
         const { userId, question, conversationId } = req.body;
@@ -672,6 +686,7 @@ app.post('/getConversations', async(req,res)=>{
     try {
         const { userId } = req.body;
         let conversation = await getConversation(userId, null);
+        console.log("Conversation:", conversation);
         res.json({
             success: true,
             conversation

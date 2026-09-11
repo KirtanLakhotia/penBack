@@ -115,11 +115,11 @@ async function getConversation(userId, recordingId = null) {
             SELECT *
             FROM conversations
             WHERE user_id = $1
-              AND recording_id IS NULL
-            LIMIT 1
+            AND recording_id IS NULL
             `,
             [userId]
         );
+        return result.rows || null;
     } else {
         result = await pool.query(
             `
