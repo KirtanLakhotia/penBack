@@ -327,7 +327,7 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             response_format: 'json',
             temperature: 0
         })
-
+    
         const transcript = transcription.text
 
         console.log('Transcript:')
