@@ -29,9 +29,9 @@ app.use(cors())
 // multer memory storage for forwarding uploads to Supabase
 const upload = multer({ storage: multer.memoryStorage() })
 
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY
-})
+// const groq = new Groq({
+//     apiKey: process.env.GROQ_API_KEY
+// })
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY

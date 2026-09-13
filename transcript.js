@@ -98,6 +98,7 @@ async function  gemini_transcription(audioFile) {
             diarization_mode: "speaker",
             timestamp_granularities: ["word"],
         },
+        // language_codes: ["hi-IN"],
         },
     },
     });
