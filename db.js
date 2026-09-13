@@ -189,6 +189,28 @@ async function getMessages(conversationId) {
     return result.rows;
 }
 
+async function saveDiarization(recordingId, diarization) {
+    for (const entry of diarization) {
+        await pool.query(
+            `
+            INSERT INTO transcript_segments (recording_id, speaker_id, start_time, end_time, text)
+            VALUES ($1, $2, $3, $4, $5)
+            `,
+            [recordingId, entry.speaker, entry.start_offset, entry.end_offset, entry.text]
+        );
+    }
+}
+async function getDiarization(recordingId) {
+    const result = await pool.query(
+        `
+        SELECT * FROM transcript_segments
+        WHERE recording_id = $1
+        `,
+        [recordingId]
+    );
+    return result.rows;
+}
+
 export {
     saveRecording,
     saveTodos,
@@ -197,5 +219,7 @@ export {
     getConversation,
     saveConversation,
     saveMessage,
-    getMessages
+    getMessages,
+    saveDiarization,
+    getDiarization
 };

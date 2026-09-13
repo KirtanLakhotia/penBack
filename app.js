@@ -8,14 +8,13 @@ import multer from 'multer'
 import cors from 'cors'
 import 'dotenv/config'
 
-import Groq from 'groq-sdk'
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { saveRecording, saveTodos, getRecordings ,getTodos, getConversation,saveConversation, saveMessage, getMessages } from "./db.js";
+import { saveRecording, saveTodos, getRecordings ,getTodos, getConversation,saveConversation, saveMessage, getMessages, saveDiarization, getDiarization} from "./db.js";
 import { createAndStoreEmbeddings } from "./rag/ingest.js";
 
 import { retrieveFromRecording, retrieveFromUser } from "./rag/retriever.js";
-
+import {grok_transcription, gemini_transcription} from "./transcript.js";
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -319,19 +318,18 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
             }
         )
 
-        console.log('Sending audio to Groq...')
+        console.log('Sending audio to gemini...')
+        // const transcription = await grok_transcription(audioFile);  
+        const {transcription, diarization} = await gemini_transcription(audioFile);
+        console.log('Transcription received from Gemini:')
+        console.log(transcription)
+        console.log('Diarization received from Gemini:')
+        console.log(diarization)
 
-        const transcription = await groq.audio.transcriptions.create({
-            file: audioFile,
-            model: 'whisper-large-v3',
-            response_format: 'json',
-            temperature: 0
-        })
-    
-        const transcript = transcription.text
-
-        console.log('Transcript:')
-        console.log(transcript)
+        const transcript = transcription
+ 
+        // console.log('Transcript:')
+        // console.log(transcript)
 
 
         // const {summ , toto} = something something
@@ -351,6 +349,8 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         });
 
        const todoSaved =  await saveTodos(recording.recording_id, todos);
+
+       const savedDiarization = await saveDiarization(recording.recording_id, diarization);
 
     //    inserting the imbeddings into the database for the summary and todos and transcription for future search and retrieval
     //    int his i will get recoring id and the todo id
@@ -698,8 +698,20 @@ app.post('/getConversations', async(req,res)=>{
 }) ;
 
 
+app.post('/getDiarization', async(req,res)=>{
+    try {
+        const { recordingId } = req.body;
 
-
+        const diarization = await getDiarization(recordingId);
+        res.json({
+            success: true,
+            diarization
+        }); 
+    }
+    catch (error) {
+        console.error(error);
+    }
+}) ;
 
 
 app.get('/', (req, res) => {
