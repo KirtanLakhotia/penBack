@@ -80,10 +80,19 @@ async function getRecordings(user_id) {
     return result.rows;
 }
 
-async function getTodos(recordingId) {
+async function getTodos(recordingId=null) {
+    if(recordingId === null) {
+        const fullResult = await pool.query(
+            `
+            SELECT todo_id,text,is_done, recording_id FROM todos
+            `,
+            []
+        );
+        return fullResult.rows;
+    }
     const result = await pool.query(
         `
-        SELECT text,is_done FROM todos
+        SELECT todo_id,text,is_done FROM todos
         WHERE recording_id = $1
         `,
         [recordingId]
@@ -91,6 +100,20 @@ async function getTodos(recordingId) {
 
     return result.rows;
 }
+
+async function setTodoDone(todo_id, is_done) {
+    const result = await pool.query(
+        `
+        UPDATE todos
+        SET is_done = $1
+        WHERE todo_id = $2
+        `,
+        [is_done, todo_id]
+    );
+    return result.rows[0];
+}
+
+
 
 // async function getConversation(userId, recordingId=null) {
 //     const result = await pool.query(
@@ -221,5 +244,6 @@ export {
     saveMessage,
     getMessages,
     saveDiarization,
-    getDiarization
+    getDiarization,
+    setTodoDone
 };

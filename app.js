@@ -10,7 +10,7 @@ import 'dotenv/config'
 
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { saveRecording, saveTodos, getRecordings ,getTodos, getConversation,saveConversation, saveMessage, getMessages, saveDiarization, getDiarization} from "./db.js";
+import { saveRecording, saveTodos, getRecordings ,getTodos, getConversation,saveConversation, saveMessage, getMessages, saveDiarization, getDiarization, setTodoDone} from "./db.js";
 import { createAndStoreEmbeddings } from "./rag/ingest.js";
 
 import { retrieveFromRecording, retrieveFromUser } from "./rag/retriever.js";
@@ -494,7 +494,7 @@ app.post('/recordings', async (req, res) => {
             } else {
                 recording.audio_url = data.signedUrl;
             }
-            recording.todos = await getTodos(recording.recording_id);
+            // recording.todos = await getTodos(recording.recording_id);
         }
 
         res.json({
@@ -510,6 +510,32 @@ app.post('/recordings', async (req, res) => {
             message: 'Failed to retrieve recordings'
         });
     }
+});
+
+app.post('/getTodos', async (req, res) => {
+    try {
+        const { recordingId } = req.body;
+        const todos = await getTodos(recordingId);
+        res.json({
+            success: true,
+            todos
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve todos'
+        });
+    }
+});
+
+app.post("/setTodoDone", async (req, res) => {
+    const { todo_id, is_done } = req.body;
+   await setTodoDone(todo_id, is_done) ;
+    res.json({
+        success: true,
+        message: 'Todo updated successfully'
+    });
 });
 
 app.post('/askRecordingLevel',async (req,res)=>{
