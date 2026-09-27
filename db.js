@@ -234,6 +234,18 @@ async function getDiarization(recordingId) {
     return result.rows;
 }
 
+async function getRecordingNames(user_id) {
+    const result = await pool.query(
+        `
+        SELECT DISTINCT title
+        FROM recordings
+        WHERE user_id = $1
+        `,
+        [user_id]
+    );
+    return result.rows;
+}
+
 export {
     saveRecording,
     saveTodos,
@@ -245,5 +257,6 @@ export {
     getMessages,
     saveDiarization,
     getDiarization,
-    setTodoDone
+    setTodoDone,
+    getRecordingNames
 };

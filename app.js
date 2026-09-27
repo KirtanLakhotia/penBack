@@ -10,7 +10,7 @@ import 'dotenv/config'
 
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { saveRecording, saveTodos, getRecordings ,getTodos, getConversation,saveConversation, saveMessage, getMessages, saveDiarization, getDiarization, setTodoDone} from "./db.js";
+import { saveRecording, saveTodos, getRecordings ,getTodos, getConversation,saveConversation, saveMessage, getMessages, saveDiarization, getDiarization, setTodoDone, getRecordingNames} from "./db.js";
 import { createAndStoreEmbeddings } from "./rag/ingest.js";
 
 import { retrieveFromRecording, retrieveFromUser } from "./rag/retriever.js";
@@ -95,7 +95,7 @@ const ai = new GoogleGenAI({
 async function generateSummaryAndTodos(transcript) {
 
     const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.6-flash",
 
 contents: `
 You are an AI assistant for a smart AI pen.
@@ -325,6 +325,13 @@ app.post('/api/files/upload', upload.single('file'), async (req, res) => {
         console.log(transcription)
         console.log('Diarization received from Gemini:')
         console.log(diarization)
+
+        if (!transcription || !transcription.trim()) {
+            return res.status(200).json({
+                success: true,
+                message: 'The uploaded audio did not contain a usable transcription. The recording was not saved.'
+            })
+        }
 
         const transcript = transcription
  
@@ -739,6 +746,24 @@ app.post('/getDiarization', async(req,res)=>{
     }
 }) ;
 
+app.post('/recordingNames', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID is required'
+            });
+        }
+        const recordingNames = await getRecordingNames(userId);
+        res.json({
+            success: true,
+            recordingNames
+        });
+    } catch (error) {
+        console.error(error);
+    }
+});
 
 app.get('/', (req, res) => {
 	res.send('Hello from the backend server!')
